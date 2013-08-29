@@ -52,7 +52,7 @@ static char *ConfigVideoOut;		///< video out device
 static char *ConfigAudioOut;		///< audio out device
 static char *ConfigAudioMixer;		///< audio mixer device
 static char *ConfigMixerChannel;	///< audio mixer channel
-static const char *ConfigMplayer = "/usr/bin/mplayer";	///< mplayer executable
+static const char *ConfigMplayer = "/usr/bin/mpv";	///< mpv executable
 static const char *ConfigMplayerArguments;	///< extra mplayer arguments
 static const char *ConfigX11Display = ":0.0";	///< x11 display
 
@@ -177,22 +177,20 @@ static void PlayerParseLine(const char *data, int size)
 	if (sscanf(data, "ID_SID_%d_LANG=%s", &sid, lang) == 2) {
 	    Debug(3, "SID(%d) = %s\n", sid, lang);
 	}
-    } else if (!strncasecmp(data, "ANS_META_TITLE=", 14)) {
-	if (sscanf(data, "ANS_META_TITLE='%[^\t\n]", PlayerTitle) == 1) {
-	    PlayerTitle[strlen(PlayerTitle) - 1] = 0;
+    } else if (!strncasecmp(data, "ANS_media-title=", 15)) {
+	if (sscanf(data, "ANS_media-title=%[^\t\n]", PlayerTitle) == 1) {
 	    Debug(3, "PlayerTitle= %s\n", PlayerTitle);
 	}
-    } else if (!strncasecmp(data, "ANS_FILENAME=", 12)) {
-	if (sscanf(data, "ANS_FILENAME='%[^\t\n]", PlayerFilename) == 1) {
-	    PlayerFilename[strlen(PlayerFilename) - 1] = 0;
+    } else if (!strncasecmp(data, "ANS_filename=", 12)) {
+	if (sscanf(data, "ANS_filename=%[^\t\n]", PlayerFilename) == 1) {
 	    Debug(3, "PlayerFilename= %s\n", PlayerFilename);
 	}
-    } else if (!strncasecmp(data, "ANS_LENGTH=", 10)) {
-	if (sscanf(data, "ANS_LENGTH=%d", &PlayerTotal) == 1) {
+    } else if (!strncasecmp(data, "ANS_length=", 10)) {
+	if (sscanf(data, "ANS_length=%d", &PlayerTotal) == 1) {
 	    Debug(3, "PlayerTotal=%d\n", PlayerTotal);
 	}
-    } else if (!strncasecmp(data, "ANS_TIME_POSITION=", 17)) {
-	if (sscanf(data, "ANS_TIME_POSITION=%d", &PlayerCurrent) == 1) {
+    } else if (!strncasecmp(data, "ANS_time-pos=", 12)) {
+	if (sscanf(data, "ANS_time-pos=%d", &PlayerCurrent) == 1) {
 	    Debug(3, "PlayerCurrent=%d\n", PlayerCurrent);
 	}
     }
@@ -284,107 +282,76 @@ static void PlayerExec(const char *filename)
 	close(i);
     }
 
-    // export DISPLAY=
-
-    args[0] = ConfigMplayer;
-    args[1] = "-quiet";
-    args[2] = "-msglevel";
+    argn = 0;
+    
+    args[argn++] = ConfigMplayer;
+    
+    args[argn++] = "--quiet";
+    args[argn++] = "--msglevel";
     // FIXME: play with the options
 #ifdef DEBUG
-    args[3] = "all=6:global=4:cplayer=4:identify=4";
+    args[argn++] = "all=6:global=4:cplayer=4:identify=4";
 #else
-    args[3] = "all=2:global=4:cplayer=2:identify=4";
+    args[argn++] = "all=2:global=4:cplayer=2:identify=4";
 #endif
+   
     if (ConfigOsdOverlay) {
-	args[4] = "-noontop";
+    args[argn++] = "--ontop=no";
     } else {
-	args[4] = "-ontop";
+    args[argn++] = "--ontop=yes";
     }
-    args[5] = "-noborder";
+    
     if (ConfigDisableRemote) {
-	args[6] = "-lirc";
+    args[argn++] = "--lirc=yes";
     } else {
-	args[6] = "-nolirc";
+    args[argn++] = "--lirc=no";
     }
-    args[7] = "-nojoystick";		// disable all unwanted inputs
-    args[8] = "-noar";
-    args[9] = "-nomouseinput";
-    args[10] = "-nograbpointer";
-    args[11] = "-noconsolecontrols";
-    args[12] = "-fixed-vo";
-    args[13] = "-sid";			// subtitle selection
-    args[14] = "0";
-    args[15] = "-slang";
-    args[16] = "de,en";			// FIXME: use VDR config
-    args[17] = "-alang";
-    args[18] = "de,en";			// FIXME: use VDR config
-    argn = 19;
+
+    args[argn++] = "--fixed-vo";
+    args[argn++] = "--slang=deu,de,ger,eng,en";			// FIXME: use VDR config
+    args[argn++] = "--alang=deu,de,ger,eng,en"; // FIXME: use VDR config
+    args[argn++] = "--sub-forced-only";			
+    args[argn++] = "--ad-lavc-ac3drc=0"; // no dynamic range control
+    
     if (ConfigMplayerDevice) {		// dvd-device
-	args[argn++] = "-dvd-device";
-	args[argn++] = ConfigMplayerDevice;
+	     args[argn++] = "--dvd-device";
+	     args[argn++] = ConfigMplayerDevice;
+	    //args[argn++] = "--bluray-device=";
     }
     if (!strncasecmp(filename, "cdda://", 7)) {
-	args[argn++] = "-cache";	// cdrom needs cache
-	args[argn++] = "1000";
+	    args[argn++] = "--cache";	// cdrom needs cache
+	    args[argn++] = "1000";
     } else {
-	args[argn++] = "-nocache";	// dvdnav needs nocache
+	    args[argn++] = "--cache=no";	// dvdnav needs nocache
     }
     if (ConfigUseSlave) {
-	args[argn++] = "-slave";
-	//args[argn++] = "-idle";
+    	args[argn++] = "--slave-broken";
     }
     if (ConfigOsdOverlay) {		// no mplayer osd with overlay
-	args[argn++] = "-osdlevel";
-	args[argn++] = "0";
-    }
-    if (ConfigFullscreen) {
-	args[argn++] = "-fs";
-	args[argn++] = "-zoom";
-    } else {
-	args[argn++] = "-nofs";
+	    args[argn++] = "--osd-level=0";
     }
     if (VideoGetPlayWindow()) {
-	snprintf(wid_buf, sizeof(wid_buf), "%d", VideoGetPlayWindow());
-	args[argn++] = "-wid";
-	args[argn++] = wid_buf;
+	    snprintf(wid_buf, sizeof(wid_buf), "--wid=%d", VideoGetPlayWindow());
+    	args[argn++] = wid_buf;
     }
-    if (ConfigVideoOut) {
-	args[argn++] = "-vo";
-	args[argn++] = ConfigVideoOut;
+    if (ConfigVideoOut) { 
+	    args[argn++] = "--vo";
+	    args[argn++] = ConfigVideoOut;
 	// add options based on selected video out
 	if (!strncmp(ConfigVideoOut, "vdpau", 5)) {
-	    args[argn++] = "-vc";
-	    args[argn++] =
-		"ffmpeg12vdpau,ffwmv3vdpau,ffvc1vdpau,ffh264vdpau,ffodivxvdpau,";
-	} else if (!strncmp(ConfigVideoOut, "vaapi", 5)) {
+	    args[argn++] = "--hwdec=vdpau";
+	} /*else if (!strncmp(ConfigVideoOut, "vaapi", 5)) {
 	    args[argn++] = "-va";
 	    args[argn++] = "vaapi";
-	}
+	}*/
     }
     if (ConfigAudioOut) {
-	args[argn++] = "-ao";
+	args[argn++] = "--ao";
 	args[argn++] = ConfigAudioOut;
-	// FIXME: -ac hwac3,hwdts,hwmpa,
+	args[argn++] = "--ad=spdif:*";  // use pass through
+	//args[argn++] = "--ad-spdif-dtshd=yes"; // use dtshd, seems not to work with vdpau
     }
-    if (ConfigAudioMixer) {
-	args[argn++] = "-mixer";
-	args[argn++] = ConfigAudioMixer;
-    }
-    if (ConfigMixerChannel) {
-	args[argn++] = "-mixer-channel";
-	args[argn++] = ConfigMixerChannel;
-    }
-    if (ConfigX11Display) {
-	args[argn++] = "-display";
-	args[argn++] = ConfigX11Display;
-    }
-    if (PlayerVolume != -1) {
-	// FIXME: here could be a problem with LANG
-	snprintf(volume_buf, sizeof(volume_buf), "%.2f",
-	    (PlayerVolume * 100.0) / 255);
-	args[argn++] = "-volume";
-	args[argn++] = volume_buf;
-    }
+
     //	split X server arguments string into words
     if (ConfigMplayerArguments) {
 	const char *sval;
@@ -420,10 +387,11 @@ static void PlayerExec(const char *filename)
     }
 #endif
 
-    execvp(args[0], (char *const *)args);
+    const char *env[] = {"DISPLAY=:0", (char *)0 };
+    execvpe(args[0], (char *const *)args, (char *const *)env);
 
     // shouldn't be reached
-    Error(_("play: execvp of '%s' failed: %s\n"), args[0], strerror(errno));
+    Error(_("play: execvpe of '%s' failed: %s\n"), args[0], strerror(errno));
     exit(-1);
 }
 
@@ -723,7 +691,7 @@ void PlayerSendDvdNavMenu(void)
 void PlayerGetLength(void)
 {
     if (ConfigUseSlave) {
-	SendCommand("get_time_length\n");
+	SendCommand("get_property length\n");
     }
 }
 
@@ -733,7 +701,7 @@ void PlayerGetLength(void)
 void PlayerGetCurrentPosition(void)
 {
     if (ConfigUseSlave) {
-	SendCommand("get_time_pos\n");
+	SendCommand("get_property time-pos\n");
     }
 }
 
@@ -743,7 +711,7 @@ void PlayerGetCurrentPosition(void)
 void PlayerGetMetaTitle(void)
 {
     if (ConfigUseSlave) {
-	SendCommand("get_meta_title\n");
+	SendCommand("get_property media-title\n");
     }
 }
 
@@ -753,7 +721,7 @@ void PlayerGetMetaTitle(void)
 void PlayerGetFilename(void)
 {
     if (ConfigUseSlave) {
-	SendCommand("get_file_name\n");
+	SendCommand("get_property filename\n");
     }
 }
 

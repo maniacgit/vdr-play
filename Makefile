@@ -20,6 +20,8 @@ SWSCALE ?= $(shell pkg-config --exists libswscale && echo 1)
 PNG ?= $(shell pkg-config --exists libpng && echo 1)
     # support jpg images
 JPG ?= $(shell test -r /usr/include/jpeglib.h && echo 1)
+	# support refresh rate switching
+XRANDR ?= $(shell pkg-config --exists xrandr && echo 1)
 
 CONFIG := #-DDEBUG			# uncomment to build DEBUG
 
@@ -42,6 +44,10 @@ ifeq ($(JPG),1)
 CONFIG += -DUSE_JPG
 _CFLAGS += -I/usr/include
 LIBS += -Ljpeg
+endif
+ifeq ($(XRANDR),1)
+CONFIG += -DUSE_XRANDR
+LIBS += $(shell pkg-config --libs xrandr)
 endif
 
 _CFLAGS += $(shell pkg-config --cflags xcb xcb-image xcb-keysyms xcb-icccm)

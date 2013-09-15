@@ -37,7 +37,12 @@
 #define _(str) gettext(str)		///< gettext shortcut
 #define _N(str) str			///< gettext_noop shortcut
 
+
 #include <fcntl.h>
+
+#ifdef USE_XRANDR
+#include <X11/extensions/Xrandr.h>
+#endif
 
 #include "player.h"
 #include "video.h"
@@ -50,6 +55,7 @@ const char *ConfigBrowserRoot = "/";	///< browser starting point
 static char ConfigOsdOverlay;		///< show osd overlay
 static char ConfigUseSlave;		///< external player use slave mode
 static char ConfigFullscreen;		///< external player uses fullscreen
+static char ConfigRefreshRate;		///< refresh rate switching
 static char *ConfigVideoOut;		///< video out device
 static char *ConfigAudioOut;		///< audio out device
 static char *ConfigAudioMixer;		///< audio mixer device
@@ -172,8 +178,57 @@ int PlayerCurrent;			///< current postion in seconds
 int PlayerTotal;			///< total length in seconds
 char PlayerTitle[256];			///< title from meta data
 char PlayerFilename[256];		///< filename
+int PlayerFps;				///< frames per second
+int OriginalFps;			///< fps before switch
 int PlayerNumChapters;
 int PlayerChapter;
+
+/**
+**	Change frame-rate.
+**
+**	@param target_rate	requested frame rate (24, 25, 50, 60, ...)
+*/
+static void ChangeFrameRate(int TargetRate)
+{
+#ifdef USE_XRANDR
+    Display *Dpy;
+    int RefreshRate;
+    XRRScreenConfiguration *CurrInfo;
+
+    if (!ConfigRefreshRate)
+	return;
+
+    Dpy = XOpenDisplay(ConfigX11Display);
+
+    if (Dpy) {
+	short *Rates;
+	int NumberOfRates;
+	SizeID CurrentSizeId;
+	Rotation CurrentRotation;
+	int RateFound = 0;
+
+	CurrInfo = XRRGetScreenInfo(Dpy, DefaultRootWindow(Dpy));
+	RefreshRate = XRRConfigCurrentRate(CurrInfo);
+	CurrentSizeId =
+	    XRRConfigCurrentConfiguration(CurrInfo, &CurrentRotation);
+	Rates = XRRConfigRates(CurrInfo, CurrentSizeId, &NumberOfRates);
+
+	while (NumberOfRates-- > 0) {
+	    if (TargetRate == *Rates++)
+		RateFound = 1;
+	}
+
+	if ((RefreshRate != TargetRate) && (RateFound == 1)) {
+	    OriginalFps = RefreshRate;
+	    XRRSetScreenConfigAndRate(Dpy, CurrInfo, DefaultRootWindow(Dpy),
+		CurrentSizeId, CurrentRotation, TargetRate, CurrentTime);
+	}
+
+	XRRFreeScreenConfigInfo(CurrInfo);
+	XCloseDisplay(Dpy);
+    }
+#endif
+}
 
 //////////////////////////////////////////////////////////////////////////////
 //	Slave
@@ -234,6 +289,13 @@ static void PlayerParseLine(const char *data, int size)
 	  } else if (!strncasecmp(data, "ANS_chapter=", 11)) {
 	if (sscanf(data, "ANS_chapter=%d", &PlayerChapter) == 1) {
 	    Debug(3, "PlayerChapter=%d\n", PlayerChapter);
+	}
+    } else if (!strncasecmp(data, "ANS_fps=", 7)) {
+	if (sscanf(data, "ANS_fps=%d", &PlayerFps) == 1) {
+	    if (PlayerFps == 23)
+		PlayerFps = 24;
+	    ChangeFrameRate(PlayerFps);
+	    Debug(3, "PlayerFps=%d\n", PlayerFps);
 	}
     }
 }
@@ -473,6 +535,9 @@ static void PlayerForkAndExec(const char *filename)
 	close(PlayerPipeOut[1]);
     }
 
+    if (ConfigRefreshRate)
+	PlayerGetFps();			// query mplayer for movie fps
+
     Debug(3, "play: child pid=%d\n", pid);
 }
 
@@ -547,6 +612,10 @@ static void PlayerThreadExit(void)
 	if (pthread_join(PlayerThread, &retval) || retval != PTHREAD_CANCELED) {
 	    Error(_("play: can't cancel player thread\n"));
 	}
+
+	if (ConfigRefreshRate)
+	    ChangeFrameRate(OriginalFps);
+
 	PlayerThread = 0;
     }
 }
@@ -808,6 +877,16 @@ void PlayerGetChapter(void)
 }
 
 /**
+** Get frames per second
+*/
+void PlayerGetFps(void)
+{
+    if (ConfigUseSlave) {
+	SendCommand("get_property fps\n");
+    }
+}
+
+/**
 **	Start external player.
 **
 **	@param filename	path and name of file to play
@@ -947,6 +1026,9 @@ const char *CommandLineHelp(void)
 	"  -m mplayer\tfilename of mplayer executable\n"
 	"  -M args\targuments for mplayer\n"
 	"  -o\t\tosd overlay experiments\n" "  -s\t\tmplayer slave mode\n"
+#ifdef USE_XRANDR
+	"  -r\t\tswitch modeline to refresh rate of played file\n"
+#endif
 	"  -v video\tmplayer -vo (vdpau:deint=4:hqscaling=1) overwrites mplayer.conf\n";
 }
 
@@ -974,7 +1056,7 @@ int ProcessArgs(int argc, char *const argv[])
     }
 
     for (;;) {
-	switch (getopt(argc, argv, "-%:/:a:b:d:fg:k:m:M:osv:")) {
+	switch (getopt(argc, argv, "-%:/:a:b:d:fg:k:m:M:orsv:")) {
 	    case '%':			// dvd-device
 		ConfigMplayerDevice = optarg;
 		continue;
@@ -1004,6 +1086,9 @@ int ProcessArgs(int argc, char *const argv[])
 		continue;
 	    case 'o':			// osd / overlay
 		ConfigOsdOverlay = 1;
+		continue;
+	    case 'r':			// refresh rate
+		ConfigRefreshRate = 1;
 		continue;
 	    case 's':			// slave mode
 		ConfigUseSlave = 1;

@@ -109,9 +109,9 @@ extern "C"
     extern int PlayerTotal;		///< total length in seconds
     extern char PlayerTitle[256];	///< title from meta data
     extern char PlayerFilename[256];	///< filename
+    extern int PlayerFps;		///< current frames per second
     extern int PlayerNumChapters;
     extern int PlayerChapter;
-    extern char TitleOverride[256];
     
     static void SendCommand(const char *format, ...);
 
@@ -159,6 +159,8 @@ extern "C"
     extern void PlayerGetMetaTitle(void);
     /// Get filename.
     extern void PlayerGetFilename(void);
+    /// Get frames per second.
+    extern void PlayerGetFps(void);
     /// Player Next Chapter
     extern void PlayerNextChapter(void);
     /// Player Previous Chapter

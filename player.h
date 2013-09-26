@@ -109,6 +109,8 @@ extern "C"
     extern int PlayerTotal;		///< total length in seconds
     extern char PlayerTitle[256];	///< title from meta data
     extern char PlayerFilename[256];	///< filename
+    extern int PlayerNumChapters;
+    extern int PlayerChapter;
 
     /// Start external player
     extern void PlayerStart(const char *name);
@@ -158,6 +160,8 @@ extern "C"
     extern void PlayerNextChapter(void);
     /// Player Previous Chapter
     extern void PlayerPreviousChapter(void);
+    extern void PlayerGetNumChapters(void);
+    extern void PlayerGetChapter(void);
 
 #ifdef __cplusplus
 }

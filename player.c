@@ -140,6 +140,8 @@ int PlayerCurrent;			///< current postion in seconds
 int PlayerTotal;			///< total length in seconds
 char PlayerTitle[256];			///< title from meta data
 char PlayerFilename[256];		///< filename
+int PlayerNumChapters;
+int PlayerChapter;
 
 //////////////////////////////////////////////////////////////////////////////
 //	Slave
@@ -192,6 +194,14 @@ static void PlayerParseLine(const char *data, int size)
     } else if (!strncasecmp(data, "ANS_time-pos=", 12)) {
 	if (sscanf(data, "ANS_time-pos=%d", &PlayerCurrent) == 1) {
 	    Debug(3, "PlayerCurrent=%d\n", PlayerCurrent);
+	}
+	  } else if (!strncasecmp(data, "ANS_chapters=", 12)) {
+	if (sscanf(data, "ANS_chapters=%d", &PlayerNumChapters) == 1) {
+	    Debug(3, "PlayerNumChapters=%d\n", PlayerNumChapters);
+	}
+	  } else if (!strncasecmp(data, "ANS_chapter=", 11)) {
+	if (sscanf(data, "ANS_chapter=%d", &PlayerChapter) == 1) {
+	    Debug(3, "PlayerChapter=%d\n", PlayerChapter);
 	}
     }
 }
@@ -742,6 +752,26 @@ void PlayerNextChapter(void)
 {
     if (ConfigUseSlave) {
   SendCommand("cycle chapter 1\n");
+    }
+}
+
+/**
+** Number of Chapters
+*/
+void PlayerGetNumChapters(void)
+{
+    if (ConfigUseSlave) {
+	SendCommand("get_property chapters\n");
+    }
+}
+
+/**
+** Current Chapters
+*/
+void PlayerGetChapter(void)
+{
+    if (ConfigUseSlave) {
+	SendCommand("get_property chapter\n");
     }
 }
 

@@ -395,14 +395,22 @@ void cMyControl::ShowProgress(void)
 		PlayerGetLength();
 		PlayerGetMetaTitle();
 		PlayerGetFilename();
+		PlayerGetNumChapters();
+		PlayerGetChapter();
 	    }
-
+		char TitleBuffer[256];
+		char TitleComplete[256];
 	    PlayerGetCurrentPosition();
 	    if (strcmp(PlayerTitle, "") != 0) {
-		Display->SetTitle(PlayerTitle);
+		snprintf (TitleBuffer, sizeof(TitleBuffer), "%s", PlayerTitle);
 	    } else {
-		Display->SetTitle(PlayerFilename);
+		snprintf (TitleBuffer, sizeof(TitleBuffer), "%s", PlayerFilename);
 	    }
+	    if (PlayerNumChapters > 0)
+	    {
+	    	snprintf (TitleComplete, sizeof(TitleComplete), "%s (%d/%d)", TitleBuffer, PlayerChapter+1, PlayerNumChapters);
+	    }
+	    Display->SetTitle(TitleComplete);
 	    Display->SetProgress(PlayerCurrent, PlayerTotal);
 	    Display->SetMode(play, forward, speed);
 	    Display->SetCurrent(IndexToHMSF(PlayerCurrent, false, 1));

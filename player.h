@@ -112,6 +112,7 @@ extern "C"
     extern int PlayerFps;		///< current frames per second
     extern int PlayerNumChapters;
     extern int PlayerChapter;
+    extern unsigned int PlayerChapters[100];
     
     static void SendCommand(const char *format, ...);
 

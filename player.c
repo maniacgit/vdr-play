@@ -182,6 +182,7 @@ int PlayerFps;				///< frames per second
 int OriginalFps;			///< fps before switch
 int PlayerNumChapters;
 int PlayerChapter;
+unsigned int PlayerChapters[100];
 
 /**
 **	Change frame-rate.
@@ -286,18 +287,26 @@ static void PlayerParseLine(const char *data, int size)
 	if (sscanf(data, "ANS_chapters=%d", &PlayerNumChapters) == 1) {
 	    Debug(3, "PlayerNumChapters=%d\n", PlayerNumChapters);
 	}
-	  } else if (!strncasecmp(data, "ANS_chapter=", 11)) {
+	  } else if (!strncasecmp(data, "ID_CHAPTER_", 10)) {
+	  	int chap_start, chap_num;
+	if (sscanf(data, "ID_CHAPTER_%d_START=%d", &chap_num, &chap_start) == 2) {
+	    Debug(3, "PlayerChapterStart[%d]=%d\n", chap_num, chap_start);
+	    PlayerChapters[chap_num]=chap_start;
+	}
+    } else if (!strncasecmp(data, "ANS_chapter=", 11)) {
 	if (sscanf(data, "ANS_chapter=%d", &PlayerChapter) == 1) {
 	    Debug(3, "PlayerChapter=%d\n", PlayerChapter);
 	}
     } else if (!strncasecmp(data, "ANS_fps=", 7)) {
 	if (sscanf(data, "ANS_fps=%d", &PlayerFps) == 1) {
 	    if (PlayerFps == 23)
-		PlayerFps = 24;
+		     PlayerFps = 24;
 	    ChangeFrameRate(PlayerFps);
 	    Debug(3, "PlayerFps=%d\n", PlayerFps);
+	  }
+	  
+	  //ID_CHAPTER_13_START=3394719
 	}
-    }
 }
 
 /**

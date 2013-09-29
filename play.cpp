@@ -27,6 +27,7 @@
 #include <vdr/shutdown.h>
 #include <vdr/status.h>
 #include <vdr/videodir.h>
+#include <vdr/recording.h>
 
 #ifdef HAVE_CONFIG
 #include "config.h"
@@ -202,6 +203,7 @@ class cMyPlayer:public cPlayer
     void Activate(bool);		///< player attached/detached
     /// get current replay mode
     virtual bool GetReplayMode(bool &, bool &, int &);
+    //void UpdateMarks();
 };
 
 /**
@@ -239,6 +241,8 @@ cMyPlayer::~cMyPlayer()
     dsyslog("[play]: device %d->%d\n",
 	cDevice::PrimaryDevice()->DeviceNumber(), DoMakePrimary);
 }
+
+
 
 /**
 **	Player attached or detached.
@@ -338,14 +342,31 @@ class cMyControl:public cControl
     virtual void Hide(void);		///< hide replay control
     bool infoVisible;			///< RecordingInfo visible
     time_t timeoutShow;			///< timeout shown control
+    cMarks marks;
 
   public:
     cMyControl(const char *);		///< player control constructor
     virtual ~ cMyControl();		///< player control destructor
 
     virtual eOSState ProcessKey(eKeys);	///< handle keyboard input
+    cMarks *Marks() { return &marks; }
+    void UpdateMarks();
 
 };
+
+void cMyControl::UpdateMarks()
+{
+ ((cList<cMark> *)&marks)->Clear();
+
+ if (PlayerNumChapters > 1) {
+ marks.Add(0);
+ for (int i=0; i < PlayerNumChapters; i++) {
+ 	dsyslog("Setting Mark %d %d", i, PlayerChapters[i]/1000);
+ marks.Add(PlayerChapters[i]/1000 - 1);/// 90000 * 25;//DEFAULTFRAMESPERSECOND; // assume 25fps ...
+ marks.Add(PlayerChapters[i]/1000);/// 90000 * 25;//DEFAULTFRAMESPERSECOND; // assume 25fps ...
+ }
+ }
+}
 
 /**
 **	Show replay mode.
@@ -390,6 +411,7 @@ void cMyControl::ShowProgress(void)
 	    }
 
 	    if (!infoVisible) {
+	    	UpdateMarks();
 		infoVisible = true;
 		timeoutShow = time(0) + Setup.ChannelInfoTime;
 		PlayerGetLength();
@@ -409,6 +431,7 @@ void cMyControl::ShowProgress(void)
 	    if (PlayerNumChapters > 0)
 	    {
 	    	snprintf (TitleComplete, sizeof(TitleComplete), "%s (%d/%d)", TitleBuffer, PlayerChapter+1, PlayerNumChapters);
+	    	Display->SetMarks(Marks());
 	    }
 	    Display->SetTitle(TitleComplete);
 	    Display->SetProgress(PlayerCurrent, PlayerTotal);

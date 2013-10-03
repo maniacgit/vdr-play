@@ -726,6 +726,26 @@ void PlayerGetFilename(void)
 }
 
 /**
+** Previous Chapter
+*/
+void PlayerPreviousChapter(void)
+{
+    if (ConfigUseSlave) {
+   SendCommand("cycle chapter -1\n");
+    }
+}
+
+/**
+** Next Chapter
+*/
+void PlayerNextChapter(void)
+{
+    if (ConfigUseSlave) {
+  SendCommand("cycle chapter 1\n");
+    }
+}
+
+/**
 **	Start external player.
 **
 **	@param filename	path and name of file to play

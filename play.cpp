@@ -667,6 +667,12 @@ eOSState cMyControl::ProcessKey(eKeys key)
 	    // FIXME: subtitle menu
 	    PlayerSendSubSelect();
 	    break;
+  case kNext:
+      PlayerNextChapter();
+      break;
+  case kPrev:
+      PlayerPreviousChapter();
+      break;
 
 	default:
 	    break;

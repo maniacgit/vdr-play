@@ -154,6 +154,10 @@ extern "C"
     extern void PlayerGetMetaTitle(void);
     /// Get filename.
     extern void PlayerGetFilename(void);
+    /// Player Next Chapter
+    extern void PlayerNextChapter(void);
+    /// Player Previous Chapter
+    extern void PlayerPreviousChapter(void);
 
 #ifdef __cplusplus
 }

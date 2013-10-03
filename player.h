@@ -111,6 +111,9 @@ extern "C"
     extern char PlayerFilename[256];	///< filename
     extern int PlayerNumChapters;
     extern int PlayerChapter;
+    extern char TitleOverride[256];
+    
+    static void SendCommand(const char *format, ...);
 
     /// Start external player
     extern void PlayerStart(const char *name);

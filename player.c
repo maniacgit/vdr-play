@@ -37,6 +37,8 @@
 #define _(str) gettext(str)		///< gettext shortcut
 #define _N(str) str			///< gettext_noop shortcut
 
+#include <fcntl.h>
+
 #include "player.h"
 #include "video.h"
 #include "misc.h"
@@ -60,6 +62,8 @@ static const char *ConfigX11Display = ":0.0";	///< x11 display
 static const char *ConfigMplayerDevice = "/dev/dvd";
 static uint32_t ConfigColorKey = 0x00020507;	///< color key
 
+uint8_t  osd_buffer[1920*1080*4];
+
 //////////////////////////////////////////////////////////////////////////////
 //	Osd
 //////////////////////////////////////////////////////////////////////////////
@@ -71,7 +75,7 @@ void OsdOpen(void)
 {
     Debug(3, "play: %s\n", __FUNCTION__);
 
-    VideoWindowShow();
+    //VideoWindowShow();
 }
 
 /**
@@ -79,10 +83,14 @@ void OsdOpen(void)
 */
 void OsdClose(void)
 {
+	  unsigned int i;
     Debug(3, "play: %s\n", __FUNCTION__);
 
-    VideoWindowHide();
-    VideoWindowClear();
+    SendCommand ("overlay_remove 1\n");
+    for (i=0;i<sizeof(osd_buffer);i++)
+      osd_buffer[i] = 0;
+    //VideoWindowHide();
+    //VideoWindowClear();
 }
 
 /**
@@ -90,9 +98,13 @@ void OsdClose(void)
 */
 void OsdClear(void)
 {
+	  unsigned int i;
     Debug(3, "play: %s\n", __FUNCTION__);
 
-    VideoWindowClear();
+    SendCommand ("overlay_remove 1\n");
+    for (i=0;i<sizeof(osd_buffer);i++)
+      osd_buffer[i] = 0;
+    //VideoWindowClear();
 }
 
 /**
@@ -113,9 +125,29 @@ void GetOsdSize(int *width, int *height, double *aspect)
 */
 void OsdDrawARGB(int x, int y, int w, int h, const uint8_t * argb)
 {
-    Debug(3, "play: %s %d,%d %d,%d\n", __FUNCTION__, x, y, w, h);
+  int sx;
+  int sy;
+  int pos;
+  char cmd[512];
+  int fd = open("/tmp/play_osd_1", O_CREAT | O_WRONLY, S_IWUSR);
+  
+  Debug(3, "play: %s %d,%d %d,%d\n", __FUNCTION__, x, y, w, h);
 
-    VideoDrawARGB(x, y, w, h, argb);
+  for (sy = 0; sy < h; ++sy) {
+	  for (sx = 0; sx < w; ++sx) {
+        pos=0; 
+        pos = pos + ((sy+y)*1920*4);
+        pos = pos + ((sx+x)*4);
+	    	osd_buffer[pos + 0] = argb[(w * sy + sx) * 4 + 0];
+	    	osd_buffer[pos + 1] = argb[(w * sy + sx) * 4 + 1];
+	    	osd_buffer[pos + 2] = argb[(w * sy + sx) * 4 + 2];
+	    	osd_buffer[pos + 3] = argb[(w * sy + sx) * 4 + 3];
+	    }
+	  }
+  write (fd, osd_buffer, sizeof(osd_buffer));
+  close(fd);
+  snprintf (cmd, sizeof(cmd), "overlay_add 1 0 0 \"/tmp/play_osd_1\" 0 \"bgra\" 1920 1080 %d\n", 1920*4);
+  SendCommand (cmd);
 }
 
 //////////////////////////////////////////////////////////////////////////////
